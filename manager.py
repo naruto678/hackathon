@@ -11,6 +11,8 @@ from faker import Faker
 from models.models import User, Project
 from settings import Context
 from client import Crawler
+from flask_bcrypt import Bcrypt
+
 parser = argparse.ArgumentParser()
 subparser = parser.add_subparsers(title = 'command', dest = 'command')
 
@@ -49,10 +51,6 @@ def create_db(args):
     db_name = args.db
     utils.create_db_util(db_name, './sql-scripts/create_tables.sql')
 
-def start_server(args): 
-    print(f'Listening for all incoming connections  at 0.0.0.0:{args.port}')
-    app.start_server(args)
-
 def stop_server(args):
     logging.debug(args)
     logging.info("Stopping server. Press Ctrl+c dude . What do you want me to do . Find the service process id and then kill it . Do not be lazy 😀 ")
@@ -80,6 +78,11 @@ def clean_db(args):
             logging.error(e)
 
 
+
+def start_server(args):
+    Context.setup(args.db, Bcrypt(app.app))
+    app.app.run("0.0.0.0", port = args.port)
+
 def start_crawler(args):
     Context.setup(args.db)
     crawler = Crawler(page_title = args.title, space_key = args.space)
@@ -88,7 +91,7 @@ def start_crawler(args):
 def generate_data(args):
     db_name = args.db 
     size = args.data_size
-    Context.setup(db_name)     
+    Context.setup(db_name, Bcrypt(app.app))     
     fake = Faker()
 
     for _ in range(size):
@@ -104,7 +107,7 @@ def generate_data(args):
         user.name = fake.name()
         user.email = fake.email()
         user.is_logged_in = False 
-        user.hashed_password =  "random_passowrd"
+        user.hashed_password = fake.name()
         utils.insert_user(user)
 
 

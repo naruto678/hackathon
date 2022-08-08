@@ -200,8 +200,16 @@ class UserLogin(Resource):
 
 @user_ns.route("/logout-user")
 class UserLogout(Resource): 
-    def post(self): 
-        pass 
+    @user_ns.param("name")
+    def post(self):
+        name = api.payload['name']
+        utils.logout_user(name)
+        res = utils.create_response()
+        res.set_data(f"User {name} successfully logged in")
+        return res
+
+    
+     
 
 @app.route("/ui")
 def show_ui():

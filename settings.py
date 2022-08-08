@@ -17,7 +17,7 @@ class Context:
     bcrypt = None 
 
     @staticmethod 
-    def setup(db, bcrypt):
+    def setup(db, bcrypt = None):
        Context.db_name = db
        Context.bcrypt = bcrypt
        return 

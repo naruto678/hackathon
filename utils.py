@@ -38,8 +38,9 @@ def create_db_util(db_name: str, path_to_sql_script: str): # used only as the ma
 def insert_user(user: User)->User: 
     logging.info(f'Inserting user ${user.toJSON()}')
     if user.hashed_password is None: 
-        ## correctly implement this to use salted password rather than this abomination
-        user.hashed_password = 'random_password'
+        raise Exception("password cannot be none")
+    user.hashed_password = Context.bcrypt.generate_password_hash(user.hashed_password, 10)
+    logging.debug(user.hashed_password)
     insert_stmt = 'insert into users(name, email, hashed_password) values(?, ?,?)' 
     with  Context.get_connection() as conn:
         cursor = conn.cursor()
