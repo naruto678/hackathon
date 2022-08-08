@@ -3,3 +3,4 @@ pdm.lock
 .pdm.toml
 __pypackages__/*
 .idea/*
+*.db

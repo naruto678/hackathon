@@ -1,4 +1,5 @@
-from flask import Flask, render_template
+from flask import Flask, redirect, render_template, url_for
+from flask import session
 import logging
 from flask_restx import Api, Resource, Namespace, fields
 from flask_restx.reqparse import HTTPStatus
@@ -6,12 +7,14 @@ from settings import Context
 import utils
 import json
 from models.models import User, Project
-
+from flask import session
+from flask_bcrypt import Bcrypt
 project_ns = Namespace('projects',description='Contains all the project operations')
 user_ns = Namespace('users', description='Contains all the user operations')
 
 
 app = Flask(__name__)
+
 api = Api(app, version = "0.1" , title = 'Automation-Api-Wells-Fargo', description = 'One stop for all wells fargo tools hosted on marketplace docs/swagger pages ')
 
 
@@ -42,7 +45,13 @@ add_model = api.model("Metadata",{
 
 })
 
+description_model = api.model("Description", {
+    'descr': fields.String(required= True, description = "keywords separated by commas in order of relevance")
+})
 
+tags_model = api.model("Tags", {
+    'tags' : fields.String(required =True, description = "Tags separated by commas in order of relevance")
+})
 
 
 @project_ns.route("/search/name/<name>")
@@ -119,25 +128,30 @@ class UserUpdate(Resource):
 @project_ns.route("/search/description")
 class ProjDesc(Resource):
     @project_ns.response(200, 'Success' ,[project_model])
+    @project_ns.expect(description_model)
     def post(self): 
         res = utils.create_response()
-        projects = utils.get_all_projects()
+        descr = api.payload['descr']
+        projects = utils.get_project_by_description(descr)
         res.set_data(json.dumps(projects, cls = utils.CustomEncoder))
         return res 
 
 
-@project_ns.route("/search/tags/<tags>")
+@project_ns.route("/search/tags/")
 class ProjTag(Resource):
     @project_ns.response(200, 'Success',[project_model])
-    def post(self, tags):
+    @project_ns.expect(tags_model)
+    def post(self):
         res = utils.create_response()
+        tags = api.payload['tags']
         projects = utils.get_project_by_tags(tags)
         res.set_data(json.dumps(projects, cls = utils.CustomEncoder))
         return res 
 
-@project_ns.route("/id/<int:id>")
+@project_ns.route("/id")
 class ProjId(Resource): 
     @project_ns.response(200,'Success', [project_model])
+    @project_ns.param("id", "Id of the project")
     def get(self, id): 
         res = utils.create_response()
         project = utils.get_project_by_id(id)
@@ -154,23 +168,40 @@ class UserList(Resource):
         res.set_data(json.dumps(users, cls = utils.CustomEncoder))
         return res 
 
-@user_ns.route("/name/<name>")
+@user_ns.route("/name")
 class  UserName(Resource): 
     @user_ns.response(200, 'Success', [user_model])
+    @user_ns.param("name", "Name of the project")
     def get(self, name: str): 
         res = utils.create_response()
         users  = utils.get_users_by_name(name)
         res.set_data(json.dumps(users,cls = utils.CustomEncoder))
         return res 
 
-@user_ns.route("/email/<email>")
+@user_ns.route("/email")
 class UserEmail(Resource): 
     @user_ns.response(200, 'Success', [user_model])
+    @user_ns.param("email", "Email of the user")
     def get(self, email): 
         res = utils.create_response()
         users = utils.get_users_by_mail(email)
         res.set_data(json.dumps(users, cls = utils.CustomEncoder))
         return res
+
+@user_ns.route("/login-user")
+class UserLogin(Resource):
+    @user_ns.param("name", "username")
+    @user_ns.param("password", "password")
+    @user_ns.response(200, "Success")
+    def post(self):
+        if utils.authenticate_and_login_user(api.payload): 
+            return
+        pass 
+
+@user_ns.route("/logout-user")
+class UserLogout(Resource): 
+    def post(self): 
+        pass 
 
 @app.route("/ui")
 def show_ui():
@@ -178,7 +209,7 @@ def show_ui():
 
 
 def start_server(args):
-    Context.setup(args.db)
+    Context.setup(args.db, Bcrypt(app))
     app.run("0.0.0.0", port = args.port)
     
 if __name__ =='__main__':

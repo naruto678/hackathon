@@ -14,10 +14,12 @@ class Context:
 
     connection = None 
     db_name : str = ''
+    bcrypt = None 
 
     @staticmethod 
-    def setup(db):
-       Context.db_name = db 
+    def setup(db, bcrypt):
+       Context.db_name = db
+       Context.bcrypt = bcrypt
        return 
 
     @classmethod

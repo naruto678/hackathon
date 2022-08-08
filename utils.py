@@ -7,12 +7,11 @@ from models.models import Project , User, BaseModel
 from flask import make_response
 from json import JSONEncoder
 from settings import Context
-
+from flask import session
 def create_response(): 
     res =  make_response()
     res.headers.add("Access-Control-Allow-Origin", "*")
     return res
-
 
 class CustomEncoder(JSONEncoder): 
     def default(self, o: Union[BaseModel, List[BaseModel]])->List[Dict]: 
@@ -109,9 +108,10 @@ def get_project_by_name(name: str)->List[Project]:
             projects.append(project)
         return projects
 
-def get_project_by_description(descr:str)->List[Project]: 
-    # Functional logic to be added here
-    return get_all_projects()
+def get_project_by_description(descr:Union[str, None])->List[Project]: 
+    logging.debug(descr)
+    logging.debug("To be implemented by amlan")
+    return get_all_projects() 
 
 def get_project_by_tags(tag_list: str)->List[Project]: 
     # tag_list is split by commas 
@@ -139,37 +139,56 @@ def get_all_users()->List[User]:
 
 def get_users_by_name(name: str)->List[User]: 
     stmt = 'select id, name, email, hashed_passwords, is_logged_in from users where name = ?'
-    conn = Context.get_connection()
-    cursor = conn.cursor()
-    cursor.execute(stmt)
-    user_list = []
-    for row in cursor.fetchall(): 
-        user = User()
-        user.id = row[0]
-        user.name = row[1]
-        user.email = row[2]
-        user.hashed_password = row[3]
-        user.is_logged_in = row[4]
-        user_list.append(user)
-    conn.close()
+    with Context.get_connection() as conn: 
+        cursor = conn.cursor()
+        cursor.execute(stmt)
+        user_list = []
+        for row in cursor.fetchall(): 
+            user = User()
+            user.id = row[0]
+            user.name = row[1]
+            user.email = row[2]
+            user.hashed_password = row[3]
+            user.is_logged_in = row[4]
+            user_list.append(user)
     return user_list 
 
 ## email should be unique but should be okay for now
-def get_users_by_mail(mail: str)->List[User]: 
-    stmt = 'select id, name, email, hashed_passwords, is_logged_in from users where email = ?'
-    conn = Context.get_connection()
-    cursor = conn.cursor()
-    cursor.execute(stmt)
+def get_users_by_mail(mail: str)->List[User]:
     user_list = []
-    for row in cursor.fetchall(): 
-        user = User()
-        user.id = row[0]
-        user.name = row[1]
-        user.email = row[2]
-        user.hashed_password = row[3]
-        user.is_logged_in = row[4]
-        user_list.append(user)
-    conn.close()
+    stmt = 'select id, name, email, hashed_passwords, is_logged_in from users where email = ?'
+    with Context.get_connection() as conn: 
+        cursor = conn.cursor()
+        cursor.execute(stmt, mail.strip())
+        for row in cursor.fetchall(): 
+            user = User()
+            user.id = row[0]
+            user.name = row[1]
+            user.email = row[2]
+            user.hashed_password = row[3]
+            user.is_logged_in = row[4]
+            user_list.append(user)
     return user_list 
 
+ 
+
+def authenticate_and_login_user(payload: Union[Dict, None])->bool:
+    if payload is None: 
+        return False
+    ## very bad idea . no time . 
+    stmt = 'select count(*) from users where name = ? and hashed_passwords = ?'
+    
+    with Context.get_connection() as conn: 
+        name = payload['name']
+        password = payload['password']
+        encrypted_pwd = Context.bcrypt.generate_password_hash(password)
+        cursor = conn.cursor()
+        row = cursor.fetchone(stmt, (name, password))
+        if row[0]==1:
+            session['username'] = name 
+            return True
+        else: 
+            return False 
+
+    
 

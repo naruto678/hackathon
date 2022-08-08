@@ -68,18 +68,16 @@ def drop_db(args):
 def clean_db(args): 
     db_name = args.db
     Context.setup(db_name)
-    conn = Context.get_connection()
-    cursor = conn.cursor()
-    try:
-        print("Starting clean up of all tables")
-        with open('./sql-scripts/clean-tables.sql') as file: 
-            lines = '\n'.join(file.readlines())
-            cursor.executescript(lines)
-        conn.commit()
-        print("Cleaned all the tables")
-        return 
-    except Error as e: 
-        logging.error(e)
+    with Context.get_connection() as conn: 
+        cursor = conn.cursor()
+        try:
+            print("Starting clean up of all tables")
+            with open('./sql-scripts/clean-tables.sql') as file: 
+                lines = '\n'.join(file.readlines())
+                cursor.executescript(lines)
+            print("Cleaned all the tables")
+        except Error as e: 
+            logging.error(e)
 
 
 def start_crawler(args):
@@ -90,11 +88,7 @@ def start_crawler(args):
 def generate_data(args):
     db_name = args.db 
     size = args.data_size
-    Context.setup(db_name)
-    conn = Context.get_connection()
-    if not conn: 
-        logging.error(f'Cannot get connection to ${db_name}')
-        return 
+    Context.setup(db_name)     
     fake = Faker()
 
     for _ in range(size):
